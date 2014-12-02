@@ -26,13 +26,16 @@ def classify0(inX, dataSet, labels, k):
     for i in range(k):
         voteIlabel = labels[sortedDistIndicies[i]]
         classCount[voteIlabel] = classCount.get(voteIlabel,0) + 1
-        
-        #if classCount.has_key(voteIlabel):
-        #    classCount[voteIlabel] += 1
-        #else:
-        #    classCount[voteIlabel] = 1
     sortedClassCount = sorted(classCount.iteritems(), key=operator.itemgetter(1), reverse=True)
     return sortedClassCount[0][0]
+'''
+>>> print operator.itemgetter(1).__doc__
+itemgetter(item, ...) --> itemgetter object
+
+Return a callable object that fetches the given item(s) from its operand.
+After f = itemgetter(2), the call f(r) returns r[2].
+After g = itemgetter(2, 5, 3), the call g(r) returns (r[2], r[5], r[3])
+'''
 
 def createDataSet():
     group = array([[1.0,1.1],[1.0,1.0],[0,0],[0,0.1]])

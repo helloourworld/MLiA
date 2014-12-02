@@ -1,0 +1,15 @@
+WALGREENS
+CVSPHARMACY
+医院
+医药
+中药
+中医
+门诊部
+药店
+药房
+西医
+同仁堂
+药业
+DRUGSTORE
+PHARMACIE
+PHARMACY
