@@ -1,6 +1,7 @@
 #coding=utf-8
 #__author__ = 'yulj'
 from numpy import *
+from math import *
 import numpy as np
 def loadDataSet():
     postingList=[['my', 'dog', 'has', 'flea', 'problems', 'help', 'please'],

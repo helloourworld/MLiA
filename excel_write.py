@@ -37,4 +37,6 @@ def excel_table_byindex( colnameindex=0, by_index=0):
     for i in range(len(colnames)):
         stat_table.write(0,i,colnames[i])
     stat.save('stat.xls')
-excel_table_byindex()
+#excel_table_byindex()
+
+

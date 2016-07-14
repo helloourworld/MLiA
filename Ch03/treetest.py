@@ -103,8 +103,8 @@ leafNode = dict(boxstyle = "round4", fc= "0.8")
 arrow_args = dict(arrowstyle = "<-")
 
 def plotNode(nodeTxt, centerPt, parentPt, nodeType):
-    createplot.ax1.annotate(nodeTxt, xy = parentPt, xycoords = 'axes fraction',xytext = centerPt, textcoords = 'axes fraction',\
-                            var='center', ha='center',bbox=nodeType ,arrowprops =arrow_args)
+    createplot.ax1.annotate(nodeTxt, xy = parentPt, xycoords = 'axes fraction',xytext = centerPt, textcoords = 'axes fraction',
+                            ha='center',bbox=nodeType ,arrowprops =arrow_args)
 
 def createplot():
     fig = plt.figure(1, facecolor ='white')

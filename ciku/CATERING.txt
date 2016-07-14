@@ -19,8 +19,6 @@ NANDO'S CHICKEN
 U_GRILL
 BAKERY
 KIM BO TING KOREAN RES
-RES
-RESTAURANT
 CHICKEN
 RESTAURANT
 PIZZA
@@ -33,12 +31,17 @@ SEAFOOD
 BURGER
 DINING
 呷哺呷哺餐饮管理有限公司
+日本料理
+鼎泰丰
 食府
 多乐之日
 比萨
 餐厅
 餐饮
 饭店
+餐馆
+菜馆
+厨房
 火锅
 食品
 自助餐
@@ -52,7 +55,6 @@ DINING
 好想你
 快餐店
 蛋糕
-酒店
 必胜客
 麻辣诱惑
 麻辣香锅
@@ -84,3 +86,15 @@ DINING
 肉
 烤肉
 萤初炉端烧
+水果
+海底捞
+烤鱼
+大排档
+美食
+料理
+铁板烧
+FOOD
+NOODLES
+NOODLE
+RISTORANTE
+IPPUDO

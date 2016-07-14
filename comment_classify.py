@@ -8,6 +8,7 @@ import nltk
 reload(sys)
 sys.setdefaultencoding('utf-8')
 import codecs
+import numpy as np
 #define 词库2Vec
 #'F:\MLiA\ciku'
 ciku = 'F:/MLiA/ciku/'
@@ -55,7 +56,7 @@ def primary_class():
                  ['医药'],
                  ['化妆品'],
                  ['BANK']]
-    classVec = ['CAR','MALL','MARKET','MATERNAL','CATERING','CLOTHING','HOTEL','TOUR','MEDICINE','COSMETIC','BANK']    #1-汽车 2-商场 3-超市 4-母婴用品 0-other ..
+    classVec = ['CAR','MALL','MARKET','MATERNAL','CATERING','CLOTHING','HOTEL','TOUR','MEDICINE','COSMETIC','BANKING']    #1-汽车 2-商场 3-超市 4-母婴用品 0-other ..
     return postingList,classVec
 # 输入 词库loadDataSet for postingList, classVec
 def loadDataSet():
@@ -70,11 +71,11 @@ def loadDataSet():
     return postingList,classVec
 
 # 分类 return classify dist
-def prob_classify(featureset):
+def prob_classify(featureset, MCCstr):
         # Discard any feature names that we've never seen before.
         # Otherwise, we'll just assign a probability of 0 to
-        # everything. [太原市 科美 餐饮服务 有限公司]
-        postingList,classVec = loadDataSet()
+        # everything. [红旗洗车连锁超市 【汽车 超市】 超市]
+
         for i, class_label in enumerate(classVec):
             #print class_label,len(postingList[i])
             pass
@@ -94,6 +95,9 @@ def prob_classify(featureset):
                         logprob[classVec[i]] = logprob.get(classVec[i], 0) + 1
                         ciku_list.append(each_ciku)
                         #print featureset, ':', each_ciku
+        for key in MCC_dict:
+                if MCCstr in MCC_dict[key]:
+                    logprob[key] = logprob.get(key, 0) + 3 # 增加原分类权重
         if not logprob:
                     logprob['Uk'] = 1
                     #print featureset, 'is not in any Class'
@@ -110,13 +114,20 @@ def customer_classify(class_set):
                     each_class['Unknown'] = 1
     return customer_class
 
-#输出 return分类
-def classify(featureset):
-        res, ciku_list = prob_classify(featureset)
-        sortedClassCount = sorted(res.iteritems(), key=operator.itemgetter(1), reverse=True)
-        return sortedClassCount[0][0], ciku_list, sortedClassCount
+# 输出 return分类
+def classify(featureset,mccstr):
+        res, ciku_list = prob_classify(featureset,mccstr)
+        ciku_list2str = ','.join(each for each in ciku_list)
+        sortedClass = sorted(res.iteritems(), key=operator.itemgetter(1), reverse=True)
+        sorted_class_str=''
+        if len(sortedClass) > 1:
+            if sortedClass[0][1] == sortedClass[1][1]:
+                sorted_class_str = ','.join(each[0] for each in sortedClass)
+        else:
+            sorted_class_str = ''
+        return sortedClass[0][0], ciku_list2str, sorted_class_str
 
-#进行featureset 切分
+# 进行featureset 切分
 def cut_featureset(data_in):
     porter = nltk.PorterStemmer()
     for each in drop_string:
@@ -131,27 +142,118 @@ def cut_featureset(data_in):
             featureset.remove(each)
     return featureset
 
-#main 函数 main_deal
-def main_deal(data_in, cut = True):
+# 创建词库表
+def ciku_database(ciku_data):
+    try:
+        postingList, classVec = loadDataSet()
+        conn = MySQLdb.connect(host='localhost',user='root',passwd = 'sas123', db = 'bank1', autocommit=True)
+        cursor = conn.cursor()
+        mysql = 'drop table %s' %ciku_data
+        cursor.execute(mysql)
+        mysql = 'create table if not exists %s (token varchar(128), ListClasses varchar(8))' % ciku_data
+        cursor.execute(mysql)
+        sql = "insert into %s" % ciku_data + "(token, ListClasses) values (%s, %s)"
+        val_temp = zip(postingList, classVec)
+        ciku_list = []
+        for ciku_lists in val_temp:
+            for token_temp in ciku_lists[0]:
+                ciku_list.append([token_temp.encode('gbk'), ciku_lists[-1]])
+        try:
+            cursor.executemany(sql, ciku_list)
+        except Exception, e:
+            print e
+    except Exception, e:
+        print e
+
+def loadDataSet_from_db(ciku_data):
+    try:
+        conn = MySQLdb.connect(host='localhost',user='root',passwd = 'sas123', db = 'bank1', autocommit=True)
+        cursor = conn.cursor()
+        mysql = "select token, ListClasses from  %s" % ciku_data
+        cursor.execute(mysql)
+        all = cursor.fetchall()
+        ciku_dict = {}
+        for item in all:
+            ciku_dict[item[1].upper()] = ciku_dict.get(item[1].upper(), []) + [item[0].strip().decode('gbk').encode('utf-8')]
+        postingList = []
+        classVec = ciku_dict.keys()
+        for each in ciku_dict:
+            postingList.append(ciku_dict[each])
+        return postingList, classVec
+    except Exception, e:
+        print e
+
+# 创建MCC分类表
+def MCC_Cate_list(cate_data):
+    try:
+        # select into dict
+        conn = MySQLdb.connect(host='localhost',user='root',passwd = 'sas123', db = 'bank1', autocommit=True)
+        cursor = conn.cursor()
+        mysql = "select MCC_Cate,MCC from %s" % ( cate_data)
+        cursor.execute(mysql)
+        all = cursor.fetchall()
+        MCC_dict = {}
+        for  item in all:
+            MCC_dict[item[0].upper()] = MCC_dict.get(item[0].upper(), [])+[item[1].strip()]
+        return MCC_dict
+    except Exception, e:
+        print e
+#
+
+# main 函数 main_deal
+def main_deal(data_in, mccstr, cut = True):
     if cut:
         featureset = cut_featureset(data_in)
         featureset.append(data_in)
     else:
 
         try:
-            featureset = data_in.decode('gbk').encode('utf-8')
+            featureset = data_in.decode('gbk').encode('utf-8').upper()
         except Exception,e:
-            print e,',Ok,Done!'
+            #print e,',Ok,Done!'
+            featureset = data_in.upper()
+    return classify(featureset, mccstr)
 
-            featureset = data_in#.decode('gbk').encode('utf-8')
-    return classify(featureset)
+# 处理数据集
+def excel_write(open_xls_name, write_xls_name):
+    import xlrd, xlwt
+    data = xlrd.open_workbook(open_xls_name)
+    table = data.sheets()[0]
+    wtxls = xlwt.Workbook()
+    wt = wtxls.add_sheet('sheet1')
+    nrows = table.nrows
+    ncols = table.ncols
+    colnames = table.row_values(0)
+    pointrow = 0
+    conn = MySQLdb.connect(host='localhost',user='root',passwd = 'sas123', db = 'bank1', autocommit=True)
+    cursor = conn.cursor()
+    mysql = "select account,comment,listClasses from sdt_comment2_ana limit 0,448"
+    cursor.execute(mysql)
+    alldata = cursor.fetchall()
 
-#处理数据集
+    for rownum in range(1,nrows):
+           row = table.row_values(rownum)
+           if row:
+                for i in range((len(colnames))):
+                    wt.write(pointrow+rownum,i ,row[i])
+                class_rec, ciku_list, sorted_class = main_deal(MySQLdb.escape_string(alldata[rownum-1][1]), cut=False)
+                ciku_list2str = ','.join(each for each in ciku_list)
+                if len(sorted_class) > 1:
+                    if sorted_class[0][1] == sorted_class[1][1]:
+                        sorted_class2str = ','.join(each[0] for each in sorted_class)
+                else:
+                    sorted_class2str = ''
+                wt.write(pointrow + rownum, ncols+1, class_rec)
+                wt.write(pointrow + rownum, ncols+2, ciku_list2str)
+                wt.write(pointrow + rownum, ncols+3, sorted_class2str)
+    wtxls.save(write_xls_name)
+
+#excel_write('test.xls','out.xls')
 def deal_work(num,raw_data,out_data,cut=False,num_all = False):
     conn = MySQLdb.connect(host='localhost',user='root',passwd = 'sas123', db = 'bank1', autocommit=True)
     cursor = conn.cursor()
     try:
-        start_time = time.clock()
+        start_time = time.clock();print 'Start:'
         mysql = 'select count(*) from %s' % raw_data
         cursor.execute(mysql)
         temp_num = cursor.fetchone()[0]
@@ -160,53 +262,46 @@ def deal_work(num,raw_data,out_data,cut=False,num_all = False):
         mysql = "select account,comment,listClasses from %s limit 0,%d" % ( raw_data,num)
         cursor.execute(mysql)
         alldata = cursor.fetchall()
+        mysql = 'drop table %s' %out_data
+        cursor.execute(mysql)
+        mysql = 'create table if not exists %s (account varchar(21), comment varchar(378),former_class varchar(128), class char(10),ciku_list varchar(128),confuse_class varchar(128))' % out_data
+        cursor.execute(mysql)
         if alldata:
-            #mysql = 'create table if not exists jj_comment_cutF(account varchar(30), comment varchar(128), class char(8))'
-
-            mysql = 'create table if not exists %s (account varchar(21), comment varchar(378), class char(8),former_class varchar(128),ciku_list varchar(128))' % out_data
-            cursor.execute(mysql)
-
-            with open(r'C:\Users\yulj\Desktop\res.txt','w') as fw:
                 for rec in alldata:
                    try:
-                        #print repr(rec[2])
-                        class_rec, ciku_list, sorted_class = main_deal(MySQLdb.escape_string(rec[1]), cut=cut)
-                        ciku_list2str = ','.join(each for each in ciku_list)
-                        if len(sorted_class) > 1:
-                            if sorted_class[0][1] == sorted_class[1][1]:
-                                sorted_class2str = ','.join(each[0] for each in sorted_class)
-                        else:
-                            sorted_class2str = ''
-                        fw.write(str(rec[0]).strip()+':'+ MySQLdb.escape_string(str(rec[1]).strip())+':'+ class_rec.strip()+':'+MySQLdb.escape_string(rec[2].strip())+':'+ciku_list2str.encode('gbk')+':' + sorted_class2str+'\n')
+                        '''
+                        msql = "insert into %s" % out_data +"(account, comment, former_class, class, ciku_list, confuse_class) values('%s', '%s', '%s', '%s', '%s', '%s');"
+                        insert_list.append([str(rec[0]), MySQLdb.escape_string(str(rec[1])), MySQLdb.escape_string(rec[2]), class_rec.strip(), \
+                                            MySQLdb.escape_string(ciku_list2str.encode('gbk')), MySQLdb.escape_string(sorted_class2str.encode('gbk'))])
+                    '''
                         try:
-                            mysql = "insert into %s(account, comment, class, former_class, ciku_list) values('%s', '%s', '%s', '%s','%s')" \
-                                % (out_data, str(rec[0]).strip(),MySQLdb.escape_string(str(rec[1]).strip()), class_rec.strip() ,MySQLdb.escape_string(rec[2].strip()), MySQLdb.escape_string(ciku_list2str.strip().encode('gbk')))
+                            class_rec, ciku_list2str, sorted_class2str = main_deal(MySQLdb.escape_string(rec[1]), MySQLdb.escape_string(rec[2]), cut=cut)
+                            mysql = "insert into %s(account, comment, former_class, class, ciku_list, confuse_class) values('%s', '%s', '%s', '%s','%s', '%s')" \
+                                % (out_data, str(rec[0]).strip(),MySQLdb.escape_string(str(rec[1]).strip()), MySQLdb.escape_string(rec[2].strip()),class_rec.strip() ,\
+                                   MySQLdb.escape_string(ciku_list2str.strip().encode('gbk')), MySQLdb.escape_string(sorted_class2str.strip().encode('gbk')))
                         except:
-                            mysql = "insert into %s(account, comment, class, former_class, ciku_list) values('%s', '%s', '%s', '%s', '%s')" \
-                                % (out_data, str(rec[0]).strip(),MySQLdb.escape_string(str(rec[1]).strip()), class_rec.strip() ,MySQLdb.escape_string(rec[2]), MySQLdb.escape_string(ciku_list2str.strip().encode('gbk')))
+                            mysql = "insert into %s(account, comment,  former_class,class, ciku_list, confuse_class) values('%s', '%s', '%s', '%s', '%s', '%s')" \
+                                % (out_data, str(rec[0]).strip(),MySQLdb.escape_string(str(rec[1]).strip()), MySQLdb.escape_string(rec[2]),class_rec.strip() ,\
+                                   MySQLdb.escape_string(ciku_list2str.strip().encode('gbk')), MySQLdb.escape_string(sorted_class2str.strip().encode('gbk')))
                         cursor.execute(mysql)
-
                    except Exception, e:
                         print e, rec[0]
         end_time = time.clock()
         print '执行时长:', int(end_time - start_time),'s'
     except Exception, e:
         print e
+    finally:
+        conn.close()
 
-deal_work(200,'sdt_comment2_ana','sdt_comment2_cutF',cut=False,num_all=True)
-
-'''
-b = prob_classify(['北京','汽车技术服务'])
-print b
-
-
-
-test = main_deal('九龙坡区九龙园区振华石材经营部dogs',cut=False)
-print test
-
-
-test, ciku_l, sorted_class = main_deal('他行POS 购物退货',cut=False)
-print test
-for each in ciku_l:
+postingList,classVec = loadDataSet_from_db('ciku')
+MCC_dict = MCC_Cate_list('mcc_cate')
+deal_work(2000,'sdt_comment2_ana_chn','sdt_comment2_cutF',cut=False,num_all=False)
+print postingList
+print classVec
+for each in postingList[0][:10]:
     print each
+'''
+import jieba.analyse
+text = ''
+tags = jieba.analyse.extract_tags(text,3)
 '''
